@@ -1,0 +1,101 @@
+name: Build and Deploy LOS Hub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: loshubprodacr.azurecr.io
+  IMAGE_NAME: los-hub
+  APP_NAME: loshub-web
+  RESOURCE_GROUP: loshub-prod-rg
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name loshubprodacr
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $REGISTRY/$IMAGE_NAME:${{ github.sha }} \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
+
+      - name: Configure App Service
+        run: |
+          az webapp config container set \
+            --resource-group $RESOURCE_GROUP \
+            --name $APP_NAME \
+            --docker-custom-image-name $REGISTRY/$IMAGE_NAME:${{ github.sha }} \
+            --docker-registry-server-url https://$REGISTRY
+
+      - name: Enable ACR managed identity pull
+        run: |
+          az webapp config set \
+            --resource-group $RESOURCE_GROUP \
+            --name $APP_NAME \
+            --generic-configurations '{"acrUseManagedIdentityCreds": true}'
+
+      - name: Restart App Service
+        run: |
+          az webapp restart \
+            --resource-group $RESOURCE_GROUP \
+            --name $APP_NAME
+
+      - name: Verify deployment
+        run: |
+          for i in {1..12}; do
+            if curl --fail --silent --show-error \
+              https://$APP_NAME.azurewebsites.net/api/v1/health; then
+              echo "Deployment verified successfully."
+              exit 0
+            fi
+
+            echo "Waiting for application to become healthy..."
+            sleep 10
+          done
+
+          echo "Application failed health check."
+          exit 1
