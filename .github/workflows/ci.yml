@@ -1,0 +1,38 @@
+name: LOS Hub CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Type Checking
+        run: npm run typecheck
+
+      - name: ESLint Code Quality Verification
+        run: npm run lint
+
+      - name: Execute Vitest Unit Tests
+        run: npm run test
+
+      - name: Build Next.js Standalone Production Output
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: 'https://loshub.com'

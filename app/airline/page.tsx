@@ -46,7 +46,7 @@ export default function AirlinePortalPage() {
           <div className="rounded-xl bg-brand-navy-900 p-5 text-white border border-brand-gold-500/30 shadow-card">
             <div className="flex items-center gap-2 text-brand-gold-500 text-xs font-bold uppercase mb-2">
               <Plane className="h-4 w-4" />
-              <span>Today's Managed Flights</span>
+              <span>Today&apos;s Managed Flights</span>
             </div>
             <div className="text-3xl font-extrabold text-white">14 Flights</div>
             <div className="text-xs text-slate-400 mt-1">100% On-Time Turnaround</div>

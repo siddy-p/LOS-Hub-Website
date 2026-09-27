@@ -39,7 +39,7 @@ export default function AboutPage() {
               </div>
               <h2 className="text-2xl font-bold text-brand-navy-800">Our Mission</h2>
               <p className="text-sm text-slate-600 leading-relaxed">
-                "{siteConfig.positioning.mission}" We eliminate the chaos of terminal curb haggling by creating a unified, trusted platform for verified baggage porters, executive rides, and lounge access.
+                &ldquo;{siteConfig.positioning.mission}&rdquo; We eliminate the chaos of terminal curb haggling by creating a unified, trusted platform for verified baggage porters, executive rides, and lounge access.
               </p>
             </div>
 

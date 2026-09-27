@@ -56,7 +56,7 @@ export default function PartnerPortalPage() {
           <div className="rounded-xl bg-white p-5 border border-slate-200 shadow-subtle">
             <div className="flex items-center gap-2 text-brand-navy-800 text-xs font-bold uppercase mb-2">
               <TrendingUp className="h-4 w-4 text-brand-emerald-600" />
-              <span>Today's Lounge Revenue</span>
+              <span>Today&apos;s Lounge Revenue</span>
             </div>
             <div className="text-3xl font-extrabold text-brand-navy-800">₦820,000</div>
             <div className="text-xs text-slate-500 mt-1">41 Guests × ₦20,000</div>

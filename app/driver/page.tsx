@@ -61,7 +61,7 @@ export default function DriverPortalPage() {
           <div className="rounded-xl bg-brand-navy-900 p-5 text-white border border-brand-gold-500/30 shadow-card">
             <div className="flex items-center gap-2 text-brand-gold-500 text-xs font-bold uppercase mb-2">
               <DollarSign className="h-4 w-4" />
-              <span>Today's Earnings</span>
+              <span>Today&apos;s Earnings</span>
             </div>
             <div className="text-3xl font-extrabold text-white">₦48,000 NGN</div>
             <div className="text-xs text-slate-400 mt-1">3 Completed Executive Trips</div>
@@ -90,7 +90,7 @@ export default function DriverPortalPage() {
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-lg font-bold text-brand-navy-800 flex items-center justify-between">
-              <span>Today's Executive Ride Requests</span>
+              <span>Today&apos;s Executive Ride Requests</span>
               <Badge variant="gold">MM2 Airport Hub</Badge>
             </CardTitle>
           </CardHeader>

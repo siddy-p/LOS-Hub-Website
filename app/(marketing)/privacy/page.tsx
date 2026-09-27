@@ -15,7 +15,7 @@ export default function PrivacyPage() {
 
         <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-4 text-slate-700">
           <p>
-            LOS Hub Ltd ("we", "our", "us") respects your privacy and is committed to protecting your personal data in full compliance with the Nigeria Data Protection Regulation (NDPR) and international standards.
+            LOS Hub Ltd (&ldquo;we&rdquo;, &ldquo;our&rdquo;, &ldquo;us&rdquo;) respects your privacy and is committed to protecting your personal data in full compliance with the Nigeria Data Protection Regulation (NDPR) and international standards.
           </p>
 
           <h2 className="text-lg font-bold text-brand-navy-800 pt-2">1. Data We Collect</h2>
