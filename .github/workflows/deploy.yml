@@ -63,7 +63,7 @@ jobs:
         run: |
           docker push $REGISTRY/$IMAGE_NAME:${{ github.sha }}
 
-      - name: Configure App Service
+      - name: Configure App Service to use new image
         run: |
           az webapp config container set \
             --resource-group $RESOURCE_GROUP \
