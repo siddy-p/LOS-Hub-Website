@@ -86,16 +86,24 @@ jobs:
 
       - name: Verify deployment
         run: |
+          DEFAULT_HOSTNAME=$(az webapp show \
+            --resource-group $RESOURCE_GROUP \
+            --name $APP_NAME \
+            --query defaultHostName -o tsv)
+
+          echo "Target WebApp Host: $DEFAULT_HOSTNAME"
+
           for i in {1..12}; do
             if curl --fail --silent --show-error \
-              https://$APP_NAME.azurewebsites.net/api/v1/health; then
-              echo "Deployment verified successfully."
+              https://$DEFAULT_HOSTNAME/api/v1/health; then
+              echo "Deployment verified successfully at https://$DEFAULT_HOSTNAME"
               exit 0
             fi
 
-            echo "Waiting for application to become healthy..."
+            echo "Waiting for application to become healthy... (attempt $i/12)"
             sleep 10
           done
 
-          echo "Application failed health check."
+          echo "Application failed health check on https://$DEFAULT_HOSTNAME"
           exit 1
+
