@@ -199,7 +199,7 @@ export const ALL_AIRPORTS: Airport[] = [
     timezone: 'Africa/Lagos',
     status: 'EXPANDING_SOON',
     launchYear: 2026,
-    heroImageUrl: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=1200&auto=format&fit=crop',
+    heroImageUrl: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?q=80&w=1200&auto=format&fit=crop',
     description: 'Oil & Gas hub airport serving Rivers State and Niger Delta corporate business travelers.',
     terminals: [
       { id: 'phc-main', name: 'Main Passenger Terminal', code: 'PHC-T1', description: 'Domestic and regional departures.' },
