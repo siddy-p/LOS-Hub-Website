@@ -1,21 +1,72 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container } from '@/components/layout/Container';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DEMO_DRIVER_RIDES } from '@/lib/data/demoData';
 import { ROLE_PERSONAS } from '@/types/portal';
-import { Car, DollarSign, Star, Navigation, CheckCircle2, ShieldCheck, MapPin } from 'lucide-react';
+import { Car, DollarSign, Star, Navigation, CheckCircle2, MapPin, RefreshCw } from 'lucide-react';
 import { RoleSwitcher } from '@/components/features/RoleSwitcher';
+import { formatCurrencyNGN } from '@/lib/utils/formatters';
+
+interface LiveRide {
+  id: string;
+  reference: string;
+  airportCode: string;
+  status: string;
+  totalPriceNGN: number;
+  flightNumber?: string | null;
+  scheduledAt: string;
+}
 
 export default function DriverPortalPage() {
   const driver = ROLE_PERSONAS.driver;
   const [onlineStatus, setOnlineStatus] = useState(true);
+  const [liveRides, setLiveRides] = useState<LiveRide[]>([]);
   const [rides, setRides] = useState(DEMO_DRIVER_RIDES);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const handleAcceptRide = (id: string) => {
+  const fetchLiveRides = async () => {
+    try {
+      const res = await fetch('/api/v1/bookings');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const cabBookings = json.data.filter((b: any) => b.serviceType === 'CAB');
+        setLiveRides(cabBookings);
+      }
+    } catch (err) {
+      console.error('Failed to fetch driver bookings:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveRides();
+  }, []);
+
+  const handleUpdateRide = async (id: string, newStatus: string) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/v1/bookings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setLiveRides((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update trip:', err);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleAcceptDemoRide = (id: string) => {
     setRides(rides.map((r) => (r.id === id ? { ...r, status: 'ACCEPTED' as const } : r)));
   };
 
@@ -50,7 +101,11 @@ export default function DriverPortalPage() {
                   : 'bg-slate-200 text-slate-600'
               }`}
             >
-              <span className={`h-2.5 w-2.5 rounded-full ${onlineStatus ? 'bg-brand-emerald-600 animate-pulse' : 'bg-slate-400'}`} />
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  onlineStatus ? 'bg-brand-emerald-600 animate-pulse' : 'bg-slate-400'
+                }`}
+              />
               <span>{onlineStatus ? 'ONLINE • Ready at MM2' : 'OFFLINE'}</span>
             </button>
           </div>
@@ -86,6 +141,79 @@ export default function DriverPortalPage() {
           </div>
         </div>
 
+        {/* Live Dispatches from Platform Database (if any) */}
+        {liveRides.length > 0 && (
+          <Card className="mb-8 border-brand-gold-500/40 shadow-card">
+            <CardHeader className="bg-brand-navy-900 text-white rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <Car className="h-5 w-5 text-brand-gold-500" />
+                  <span>Live Airport Dispatches ({liveRides.length})</span>
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={fetchLiveRides} className="text-slate-300">
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {liveRides.map((ride) => (
+                  <div
+                    key={ride.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-subtle"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-brand-navy-900">
+                          {ride.reference}
+                        </span>
+                        <Badge variant="gold">{ride.status}</Badge>
+                        <span className="text-xs text-slate-500">
+                          Terminal: {ride.airportCode}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Scheduled: {new Date(ride.scheduledAt).toLocaleString('en-GB')}
+                        {ride.flightNumber && ` • Flight ${ride.flightNumber}`}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="font-bold text-slate-900">
+                          {formatCurrencyNGN(ride.totalPriceNGN)}
+                        </div>
+                      </div>
+
+                      {['CONFIRMED', 'ASSIGNED'].includes(ride.status) && (
+                        <Button
+                          variant="emerald"
+                          size="sm"
+                          disabled={updatingId === ride.id}
+                          onClick={() => handleUpdateRide(ride.id, 'IN_PROGRESS')}
+                        >
+                          Start Trip
+                        </Button>
+                      )}
+
+                      {ride.status === 'IN_PROGRESS' && (
+                        <Button
+                          variant="gold"
+                          size="sm"
+                          disabled={updatingId === ride.id}
+                          onClick={() => handleUpdateRide(ride.id, 'COMPLETED')}
+                        >
+                          Complete Trip
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Rides Queue */}
         <Card className="mb-8">
           <CardHeader>
@@ -103,7 +231,9 @@ export default function DriverPortalPage() {
                 >
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-bold text-slate-900">{ride.passengerName}</span>
+                      <span className="text-base font-bold text-slate-900">
+                        {ride.passengerName}
+                      </span>
                       <Badge variant="navy">Flight {ride.flightNumber}</Badge>
                       {ride.status === 'ACCEPTED' && (
                         <Badge variant="active">Accepted • Heading to Pick-up</Badge>
@@ -113,11 +243,16 @@ export default function DriverPortalPage() {
                     <div className="space-y-1 text-xs text-slate-600">
                       <div className="flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5 text-brand-gold-600 flex-shrink-0" />
-                        <span>Pickup: <strong className="text-slate-900">{ride.pickupLocation}</strong></span>
+                        <span>
+                          Pickup: <strong className="text-slate-900">{ride.pickupLocation}</strong>
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Navigation className="h-3.5 w-3.5 text-brand-emerald-600 flex-shrink-0" />
-                        <span>Dropoff: <strong className="text-slate-900">{ride.dropoffLocation}</strong></span>
+                        <span>
+                          Dropoff:{' '}
+                          <strong className="text-slate-900">{ride.dropoffLocation}</strong>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -134,7 +269,7 @@ export default function DriverPortalPage() {
                       <Button
                         variant="gold"
                         size="sm"
-                        onClick={() => handleAcceptRide(ride.id)}
+                        onClick={() => handleAcceptDemoRide(ride.id)}
                         className="font-bold shadow-goldGlow"
                       >
                         Accept Ride Request
