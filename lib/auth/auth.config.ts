@@ -7,22 +7,33 @@ export const authConfig: NextAuthConfig = {
     strategy: 'jwt',
     maxAge: 60 * 60 * 8, // 8 hours — operational sessions expire by end of shift
   },
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
   providers: [],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // If already relative, allow it directly
+      if (url.startsWith('/') && !url.startsWith('//')) {
+        return url;
+      }
+      try {
+        const parsed = new URL(url);
+        // If redirect target points to 0.0.0.0, 127.0.0.1 or localhost, convert to clean relative path
+        if (
+          parsed.hostname === '0.0.0.0' ||
+          parsed.hostname === '127.0.0.1' ||
+          parsed.hostname === 'localhost'
+        ) {
+          return parsed.pathname + parsed.search;
+        }
+        // If baseUrl is also valid and matching origin, allow
+        const parsedBase = new URL(baseUrl);
+        if (parsedBase.hostname !== '0.0.0.0' && parsed.origin === parsedBase.origin) {
+          return url;
+        }
+        return parsed.pathname + parsed.search;
+      } catch {
+        return '/login';
+      }
+    },
     async jwt({ token, user }) {
       if (user) {
         token.role = (user as { role: UserRole }).role;

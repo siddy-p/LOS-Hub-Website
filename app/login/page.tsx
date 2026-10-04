@@ -89,8 +89,7 @@ function LoginForm() {
       }
 
       const finalPath = destination || '/traveler';
-      router.push(finalPath);
-      router.refresh();
+      window.location.href = finalPath;
     } catch {
       setIsLoading(false);
       setError('An unexpected error occurred during sign in. Please try again.');
