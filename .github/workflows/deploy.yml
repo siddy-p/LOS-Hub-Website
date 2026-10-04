@@ -43,8 +43,13 @@ jobs:
         run: npm run lint
 
       - name: Run database migrations
-        if: ${{ secrets.DATABASE_URL != '' }}
-        run: npx prisma migrate deploy
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            echo "Running Prisma migrations..."
+            npx prisma migrate deploy
+          else
+            echo "DATABASE_URL secret not configured. Skipping migration."
+          fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 

@@ -2,7 +2,7 @@ name: LOS Hub CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ develop ]
   pull_request:
     branches: [ main ]
 
