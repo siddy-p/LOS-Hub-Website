@@ -9,11 +9,14 @@ import { Input } from '@/components/ui/Input';
 import { Logo } from '@/components/layout/Logo';
 import { ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-const DEMO_CREDENTIALS: Record<string, { email: string; label: string }> = {
-  traveler: { email: 'traveler@demo.los-hub.com', label: 'Traveler' },
-  driver: { email: 'driver@demo.los-hub.com', label: 'Driver' },
-  porter: { email: 'porter@demo.los-hub.com', label: 'Porter' },
-  admin: { email: 'admin@los-hub.com', label: 'Admin' },
+const DEMO_CREDENTIALS: Record<string, { email: string; label: string; password: string }> = {
+  admin: { email: 'admin@los-hub.com', label: 'Admin', password: 'Admin@LosHub2025' },
+  corporate: { email: 'corp-admin@demo.los-hub.com', label: 'Corporate', password: 'Corporate@1234' },
+  driver: { email: 'driver@demo.los-hub.com', label: 'Driver', password: 'Driver@1234' },
+  porter: { email: 'porter@demo.los-hub.com', label: 'Porter', password: 'Porter@1234' },
+  airline: { email: 'airline@demo.los-hub.com', label: 'Airline Partner', password: 'Airline@1234' },
+  faan: { email: 'faan@demo.los-hub.com', label: 'FAAN Ops', password: 'Faan@1234' },
+  traveler: { email: 'traveler@demo.los-hub.com', label: 'Traveler', password: 'Traveler@1234' },
 };
 
 function LoginForm() {
@@ -51,13 +54,7 @@ function LoginForm() {
     const cred = DEMO_CREDENTIALS[role];
     if (cred) {
       setEmail(cred.email);
-      const passwords: Record<string, string> = {
-        traveler: 'Traveler@1234',
-        driver: 'Driver@1234',
-        porter: 'Porter@1234',
-        admin: 'Admin@LosHub2025',
-      };
-      setPassword(passwords[role] || '');
+      setPassword(cred.password);
     }
   };
 
