@@ -154,9 +154,9 @@ export function BookingModal({
             </div>
           )}
           {/* Step 1: Airport & Service Pickers */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="bm-airport-terminal" className="text-xs font-semibold text-slate-700 mb-1 block">
+              <label htmlFor="bm-airport-terminal" className="text-xs font-semibold text-slate-700 mb-1.5 block">
                 Airport Terminal
               </label>
               <select
@@ -164,7 +164,7 @@ export function BookingModal({
                 name="airportCode"
                 value={selectedAirportCode}
                 onChange={(e) => setSelectedAirportCode(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-brand-navy-600 focus:outline-none"
+                className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:text-xs font-medium text-slate-900 focus:border-brand-navy-600 focus:outline-none"
               >
                 {ALL_AIRPORTS.map((a) => (
                   <option key={a.id} value={a.code} disabled={a.status !== 'ACTIVE'}>
@@ -175,7 +175,7 @@ export function BookingModal({
             </div>
 
             <div>
-              <label htmlFor="bm-service-type" className="text-xs font-semibold text-slate-700 mb-1 block">
+              <label htmlFor="bm-service-type" className="text-xs font-semibold text-slate-700 mb-1.5 block">
                 Service
               </label>
               <select
@@ -183,7 +183,7 @@ export function BookingModal({
                 name="serviceId"
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(e.target.value as ServiceType)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-brand-navy-600 focus:outline-none"
+                className="w-full h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm sm:text-xs font-medium text-slate-900 focus:border-brand-navy-600 focus:outline-none"
               >
                 <option value="porter">Verified Porter (₦5,000)</option>
                 <option value="cab">Verified Cab (₦15,000)</option>
@@ -193,18 +193,18 @@ export function BookingModal({
           </div>
 
           {/* Service Price Header Card */}
-          <div className="rounded-lg bg-brand-navy-900 p-3.5 text-white flex items-center justify-between border border-brand-gold-500/30">
-            <div className="flex items-center gap-2.5">
-              {selectedServiceId === 'porter' && <Luggage className="h-5 w-5 text-brand-gold-500" />}
-              {selectedServiceId === 'cab' && <Car className="h-5 w-5 text-brand-gold-500" />}
-              {selectedServiceId === 'lounge' && <Coffee className="h-5 w-5 text-brand-gold-500" />}
+          <div className="rounded-xl bg-brand-navy-900 p-4 text-white flex items-center justify-between border border-brand-gold-500/30 shadow-subtle">
+            <div className="flex items-center gap-3">
+              {selectedServiceId === 'porter' && <Luggage className="h-5 w-5 text-brand-gold-500 flex-shrink-0" />}
+              {selectedServiceId === 'cab' && <Car className="h-5 w-5 text-brand-gold-500 flex-shrink-0" />}
+              {selectedServiceId === 'lounge' && <Coffee className="h-5 w-5 text-brand-gold-500 flex-shrink-0" />}
               <div>
                 <div className="text-xs font-bold text-white">{currentService?.name}</div>
                 <div className="text-[11px] text-slate-300">{currentService?.tagline}</div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-extrabold text-brand-gold-500">
+            <div className="text-right flex-shrink-0">
+              <div className="text-base sm:text-sm font-extrabold text-brand-gold-500">
                 {formatCurrencyNGN(calculatedPrice)}
               </div>
               <div className="text-[10px] text-slate-400">Guaranteed fixed rate</div>
@@ -220,7 +220,7 @@ export function BookingModal({
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Email Address"
                 type="email"
@@ -239,39 +239,41 @@ export function BookingModal({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input
                 label="Flight No. (Optional)"
                 placeholder="e.g. P4 7122"
                 value={flightNumber}
                 onChange={(e) => setFlightNumber(e.target.value)}
               />
-              <Input
-                label="Date"
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-              <Input
-                label="Time"
-                type="time"
-                required
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
+              <div className="grid grid-cols-2 sm:col-span-2 gap-2">
+                <Input
+                  label="Date"
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+                <Input
+                  label="Time"
+                  type="time"
+                  required
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
             <ShieldCheck className="h-4 w-4 text-brand-emerald-600 flex-shrink-0" />
-            <span>Official LOS Hub verified booking protocol. Instant confirmation SMS.</span>
+            <span>Official LOS Hub verified booking protocol. Instant confirmation.</span>
           </div>
 
           <Button
             type="submit"
             variant="gold"
-            className="w-full justify-center"
+            className="w-full justify-center h-12 text-base font-bold shadow-goldGlow"
             size="lg"
             disabled={isSubmitting}
           >

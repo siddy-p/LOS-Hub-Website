@@ -38,17 +38,17 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-brand-navy-950/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-brand-navy-950/70 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Container */}
       <div
         className={cn(
-          'relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl transition-all sm:p-8 animate-slide-up border border-slate-200/80',
+          'relative z-10 w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white p-5 sm:p-8 shadow-2xl transition-all max-h-[92vh] sm:max-h-[88vh] overflow-y-auto border border-slate-200/80 animate-slide-up',
           className
         )}
       >
