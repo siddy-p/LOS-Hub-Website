@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { Button } from '@/components/ui/Button';
@@ -34,65 +33,99 @@ function LoginForm() {
     setIsLoading(true);
     setError('');
 
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Map role or email to target portal
+    const ROLE_PORTALS: Record<string, string> = {
+      'admin@los-hub.com': '/admin',
+      'corp-admin@demo.los-hub.com': '/corporate-portal',
+      'driver@demo.los-hub.com': '/driver',
+      'porter@demo.los-hub.com': '/porter',
+      'airline@demo.los-hub.com': '/airline',
+      'faan@demo.los-hub.com': '/faan',
+      'traveler@demo.los-hub.com': '/traveler',
+    };
+
+    let destination =
+      rawCallbackUrl &&
+      rawCallbackUrl.startsWith('/') &&
+      !rawCallbackUrl.startsWith('//') &&
+      rawCallbackUrl !== '/login'
+        ? rawCallbackUrl
+        : ROLE_PORTALS[normalizedEmail] || '/traveler';
+
     try {
-      const result = await signIn('credentials', {
-        email: email.toLowerCase().trim(),
+      // 1. Obtain CSRF token
+      let csrfToken = '';
+      try {
+        const csrfRes = await fetch('/api/auth/csrf');
+        if (csrfRes.ok) {
+          const csrfData = await csrfRes.json();
+          csrfToken = csrfData.csrfToken || '';
+        }
+      } catch (e) {
+        console.warn('Could not fetch CSRF token:', e);
+      }
+
+      // 2. Submit credentials directly to NextAuth callback endpoint
+      const body = new URLSearchParams({
+        email: normalizedEmail,
         password,
-        redirect: false,
+        csrfToken,
+        callbackUrl: destination,
+        json: 'true',
       });
 
-      if (result?.error) {
+      const res = await fetch('/api/auth/callback/credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Auth-Return-Redirect': '1',
+        },
+        body,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      const returnUrl = data?.url || '';
+
+      if (returnUrl.includes('error=CredentialsSignin') || returnUrl.includes('error=')) {
         setIsLoading(false);
-        setError('Invalid email or password. Please try again.');
+        setError('Invalid email or password. Please check your credentials.');
         return;
       }
 
-      // Role to portal routing map
-      const ROLE_PORTALS: Record<string, string> = {
-        SUPER_ADMIN: '/admin',
-        ADMIN: '/admin',
-        CORPORATE_ADMIN: '/corporate-portal',
-        CORPORATE_USER: '/corporate-portal',
-        DRIVER: '/driver',
-        PORTER: '/porter',
-        AIRLINE_STAFF: '/airline',
-        FAAN_OPS: '/faan',
-        PARTNER: '/partner',
-        TRAVELER: '/traveler',
-      };
+      // 3. Confirm active session
+      const sessionRes = await fetch('/api/auth/session');
+      const session = await sessionRes.json().catch(() => null);
 
-      // Sanitize callbackUrl so it's strictly a relative internal path and never external/0.0.0.0
-      let destination = '';
-      if (
-        rawCallbackUrl &&
-        rawCallbackUrl.startsWith('/') &&
-        !rawCallbackUrl.startsWith('//') &&
-        rawCallbackUrl !== '/login'
-      ) {
-        destination = rawCallbackUrl;
+      if (!session?.user) {
+        setIsLoading(false);
+        setError('Invalid email or password. Please check your credentials.');
+        return;
       }
 
-      // If no valid callback specified, fetch session to route by role
-      if (!destination) {
-        try {
-          const sessionRes = await fetch('/api/auth/session');
-          if (sessionRes.ok) {
-            const sessionData = await sessionRes.json();
-            const userRole = sessionData?.user?.role;
-            if (userRole && ROLE_PORTALS[userRole]) {
-              destination = ROLE_PORTALS[userRole];
-            }
-          }
-        } catch {
-          // fallback to traveler
-        }
+      // 4. Update destination based on verified session role
+      const userRole = session.user.role;
+      if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/admin';
+      } else if (userRole === 'CORPORATE_ADMIN' || userRole === 'CORPORATE_USER') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/corporate-portal';
+      } else if (userRole === 'DRIVER') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/driver';
+      } else if (userRole === 'PORTER') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/porter';
+      } else if (userRole === 'AIRLINE_STAFF') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/airline';
+      } else if (userRole === 'FAAN_OPS') {
+        if (!rawCallbackUrl || rawCallbackUrl === '/login') destination = '/faan';
       }
 
-      const finalPath = destination || '/traveler';
-      window.location.href = finalPath;
-    } catch {
+      // 5. Navigate directly to destination
+      window.location.href = destination;
+    } catch (err) {
+      console.error('Login submit error:', err);
       setIsLoading(false);
-      setError('An unexpected error occurred during sign in. Please try again.');
+      setError('Connection error while contacting server. Please try again.');
     }
   };
 

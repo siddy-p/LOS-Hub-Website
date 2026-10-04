@@ -10,28 +10,26 @@ export const authConfig: NextAuthConfig = {
   providers: [],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // If already relative, allow it directly
-      if (url.startsWith('/') && !url.startsWith('//')) {
-        return url;
+      const publicBase = process.env.WEBSITE_HOSTNAME
+        ? `https://${process.env.WEBSITE_HOSTNAME}`
+        : (process.env.AUTH_URL || process.env.NEXTAUTH_URL || (baseUrl.includes('0.0.0.0') ? 'http://localhost:3000' : baseUrl));
+
+      if (url.startsWith('/')) {
+        return `${publicBase}${url}`;
       }
+
       try {
         const parsed = new URL(url);
-        // If redirect target points to 0.0.0.0, 127.0.0.1 or localhost, convert to clean relative path
         if (
           parsed.hostname === '0.0.0.0' ||
           parsed.hostname === '127.0.0.1' ||
           parsed.hostname === 'localhost'
         ) {
-          return parsed.pathname + parsed.search;
+          return `${publicBase}${parsed.pathname}${parsed.search}`;
         }
-        // If baseUrl is also valid and matching origin, allow
-        const parsedBase = new URL(baseUrl);
-        if (parsedBase.hostname !== '0.0.0.0' && parsed.origin === parsedBase.origin) {
-          return url;
-        }
-        return parsed.pathname + parsed.search;
+        return url;
       } catch {
-        return '/login';
+        return `${publicBase}/login`;
       }
     },
     async jwt({ token, user }) {
