@@ -3,18 +3,59 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { CheckCircle, Handshake } from 'lucide-react';
+import { CheckCircle, Handshake, AlertCircle } from 'lucide-react';
 
 export function PartnerForm() {
   const [partnerType, setPartnerType] = useState<'driver' | 'porter' | 'airline' | 'hotel' | 'lounge' | 'ground_handler'>('driver');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reference, setReference] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const partnerTypeMap: Record<string, string> = {
+      driver: 'TRANSPORT',
+      porter: 'OTHER',
+      airline: 'AIRLINE',
+      hotel: 'HOTEL',
+      lounge: 'LOUNGE',
+      ground_handler: 'LOGISTICS',
+    };
+
+    try {
+      const res = await fetch('/api/v1/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'PARTNER_INQUIRY',
+          name: fullName,
+          email,
+          phone,
+          company: fullName,
+          message: `Partner application for ${partnerType} category. Contact: ${fullName}, phone: ${phone}, email: ${email}`,
+          metadata: { partnerCategory: partnerType, partnerType: partnerTypeMap[partnerType] || 'OTHER' },
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Failed to submit partner application. Please try again.');
+      }
+
+      setReference(json.data.reference);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while submitting your application.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -24,6 +65,9 @@ export function PartnerForm() {
           <CheckCircle className="h-8 w-8" />
         </div>
         <h3 className="text-xl font-bold text-slate-900">Partner Application Received</h3>
+        <p className="text-xs font-mono text-brand-emerald-800 bg-brand-emerald-100/60 inline-block px-3 py-1 rounded-full">
+          Tracking Reference: {reference}
+        </p>
         <p className="text-sm text-slate-600 max-w-md mx-auto">
           Thank you <span className="font-semibold">{fullName}</span>. Our Partner Relations Team will review your application for MM2 Lagos and send onboarding details to <span className="font-semibold">{email}</span>.
         </p>
@@ -42,6 +86,13 @@ export function PartnerForm() {
           Apply to Become an Official Partner
         </h3>
       </div>
+
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       <div>
         <label htmlFor="partner-category" className="text-xs font-semibold text-slate-700 mb-1.5 block">
@@ -99,8 +150,14 @@ export function PartnerForm() {
         />
       </div>
 
-      <Button variant="gold" size="lg" className="w-full justify-center font-bold">
-        Submit Partner Application
+      <Button
+        type="submit"
+        variant="gold"
+        size="lg"
+        className="w-full justify-center font-bold"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Submitting Application...' : 'Submit Partner Application'}
       </Button>
     </form>
   );

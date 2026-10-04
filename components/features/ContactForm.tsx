@@ -3,18 +3,47 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { CheckCircle, Mail } from 'lucide-react';
+import { CheckCircle, Mail, AlertCircle } from 'lucide-react';
 
 export function ContactForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reference, setReference] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch('/api/v1/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'CONTACT',
+          name,
+          email,
+          message: `${subject ? `[${subject}] ` : ''}${message}`,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Failed to submit inquiry. Please try again.');
+      }
+
+      setReference(json.data.reference);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while sending your message.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -24,8 +53,11 @@ export function ContactForm() {
           <CheckCircle className="h-8 w-8" />
         </div>
         <h3 className="text-xl font-bold text-slate-900">Message Sent Successfully</h3>
+        <p className="text-xs font-mono text-brand-emerald-800 bg-brand-emerald-100/60 inline-block px-3 py-1 rounded-full">
+          Tracking Reference: {reference}
+        </p>
         <p className="text-sm text-slate-600 max-w-md mx-auto">
-          Thank you <span className="font-semibold">{name}</span>. Our MM2 Airport Support Desk has received your message and will respond to <span className="font-semibold">{email}</span> promptly.
+          Thank you <span className="font-semibold">{name}</span>. Our MM2 Airport Support Desk has received your inquiry and will respond to <span className="font-semibold">{email}</span> promptly.
         </p>
         <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
           Send Another Message
@@ -42,6 +74,13 @@ export function ContactForm() {
           Send Us a Direct Message
         </h3>
       </div>
+
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
@@ -91,8 +130,14 @@ export function ContactForm() {
         />
       </div>
 
-      <Button variant="gold" size="lg" className="w-full justify-center font-bold">
-        Send Message to Support Desk
+      <Button
+        type="submit"
+        variant="gold"
+        size="lg"
+        className="w-full justify-center font-bold"
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Sending Message...' : 'Send Message to Support Desk'}
       </Button>
     </form>
   );

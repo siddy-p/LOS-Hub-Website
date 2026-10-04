@@ -1,0 +1,440 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------------------------
+// AUTH (NextAuth.js v5 / Auth.js required models)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// USERS
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  emailVerified DateTime?
+  name         String?
+  phone        String?
+  passwordHash String?
+  role         UserRole   @default(TRAVELER)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  lastLoginAt  DateTime?
+
+  // Auth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Profile relations
+  travelerProfile  TravelerProfile?
+  staffProfile     StaffProfile?
+  corporateMember  CorporateMember?
+  partnerMember    PartnerMember?
+
+  // Activity
+  bookings   Booking[]    @relation("CustomerBookings")
+  auditLogs  AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  TRAVELER
+  DRIVER
+  PORTER
+  PROTOCOL_OFFICER
+  AIRLINE_STAFF
+  FAAN_OPS
+  PARTNER
+  CORPORATE_USER
+  CORPORATE_ADMIN
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+// ---------------------------------------------------------------------------
+// PROFILES
+// ---------------------------------------------------------------------------
+
+model TravelerProfile {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  preferredAirport String?
+  loyaltyTier      String  @default("STANDARD")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StaffProfile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  staffRole   StaffRole
+  airportCode String
+  badgeNumber String?   @unique
+  vehicleInfo String?
+  isAvailable Boolean   @default(true)
+  isActive    Boolean   @default(true)
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments Booking[] @relation("StaffAssignments")
+
+  @@index([airportCode, staffRole, isAvailable])
+}
+
+enum StaffRole {
+  DRIVER
+  PORTER
+  PROTOCOL_OFFICER
+}
+
+// ---------------------------------------------------------------------------
+// CORPORATE
+// ---------------------------------------------------------------------------
+
+model CorporateAccount {
+  id             String        @id @default(cuid())
+  companyName    String
+  industry       String?
+  billingEmail   String
+  accountStatus  AccountStatus @default(ACTIVE)
+  monthlyLimitNGN Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  members  CorporateMember[]
+  bookings Booking[]
+}
+
+model CorporateMember {
+  id                 String           @id @default(cuid())
+  userId             String           @unique
+  corporateAccountId String
+  isAdmin            Boolean          @default(false)
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id])
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ---------------------------------------------------------------------------
+// PARTNERS
+// ---------------------------------------------------------------------------
+
+model PartnerOrganization {
+  id           String        @id @default(cuid())
+  name         String
+  partnerType  PartnerType
+  status       AccountStatus @default(ACTIVE)
+  airportCodes String[]
+  createdAt    DateTime      @default(now())
+
+  members PartnerMember[]
+}
+
+model PartnerMember {
+  id                    String              @id @default(cuid())
+  userId                String              @unique
+  partnerOrganizationId String
+
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerOrganization PartnerOrganization @relation(fields: [partnerOrganizationId], references: [id])
+}
+
+enum PartnerType {
+  AIRLINE
+  HOTEL
+  LOUNGE
+  LOGISTICS
+  TRANSPORT
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// BOOKINGS
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id        String @id @default(cuid())
+  reference String @unique // LOB-XXXXXX
+
+  // Customer
+  customerId         String
+  customer           User              @relation("CustomerBookings", fields: [customerId], references: [id])
+  corporateAccountId String?
+  corporateAccount   CorporateAccount? @relation(fields: [corporateAccountId], references: [id])
+
+  // Airport & service
+  airportCode  String
+  terminalCode String?
+  serviceType  ServiceType
+
+  // Flight
+  flightNumber    String?
+  flightDirection FlightDirection @default(ARRIVAL)
+  scheduledAt     DateTime
+
+  // Details
+  passengerCount  Int    @default(1)
+  luggageCount    Int    @default(0)
+  specialRequests String?
+
+  // Server-authoritative pricing (never trust client values)
+  basePriceNGN  Int
+  addonsNGN     Int @default(0)
+  discountNGN   Int @default(0)
+  totalPriceNGN Int
+
+  // Status
+  status        BookingStatus @default(PENDING_PAYMENT)
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  // Staff
+  assignedStaffId String?
+  assignedStaff   StaffProfile? @relation("StaffAssignments", fields: [assignedStaffId], references: [id])
+
+  // Idempotency — prevents duplicate submissions
+  idempotencyKey String? @unique
+
+  // Timestamps
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  // Relations
+  payments       Payment[]
+  statusHistory  BookingStatusHistory[]
+  notifications  Notification[]
+
+  @@index([customerId])
+  @@index([airportCode, status])
+  @@index([assignedStaffId])
+  @@index([scheduledAt])
+  @@index([reference])
+}
+
+enum ServiceType {
+  PORTER
+  CAB
+  LOUNGE
+  FASTTRACK
+}
+
+enum FlightDirection {
+  ARRIVAL
+  DEPARTURE
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  PAID
+  CONFIRMED
+  ASSIGNMENT_PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  FULLY_REFUNDED
+  FAILED
+}
+
+model BookingStatusHistory {
+  id          String        @id @default(cuid())
+  bookingId   String
+  fromStatus  BookingStatus?
+  toStatus    BookingStatus
+  changedById String?
+  note        String?
+  createdAt   DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+}
+
+// ---------------------------------------------------------------------------
+// PAYMENTS
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String
+  amountNGN         Int
+  currency          String        @default("NGN")
+  provider          String        @default("PAYSTACK")
+  providerReference String?       @unique
+  status            PaymentStatus @default(PENDING)
+  webhookPayload    Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([providerReference])
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String              @id @default(cuid())
+  bookingId   String?
+  recipientId String?
+  type        NotificationType
+  channel     NotificationChannel
+  subject     String?
+  body        String?             @db.Text
+  status      NotifStatus         @default(PENDING)
+  attempts    Int                 @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([recipientId, status])
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_ASSIGNED
+  BOOKING_IN_PROGRESS
+  BOOKING_COMPLETED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  ASSIGNMENT_RECEIVED
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum NotifStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// AUDIT LOG
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String   // e.g. BOOKING_CREATED, STAFF_ASSIGNED
+  entityType String   // e.g. Booking, User
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// CONTACT / LEAD SUBMISSIONS
+// ---------------------------------------------------------------------------
+
+model ContactSubmission {
+  id        String           @id @default(cuid())
+  type      SubmissionType
+  reference String           @unique // CS-XXXXXX
+  name      String
+  email     String
+  phone     String?
+  company   String?
+  message   String           @db.Text
+  metadata  Json?
+  status    SubmissionStatus @default(NEW)
+  createdAt DateTime         @default(now())
+
+  @@index([email])
+  @@index([type, status])
+}
+
+enum SubmissionType {
+  CONTACT
+  CORPORATE_INQUIRY
+  PARTNER_INQUIRY
+}
+
+enum SubmissionStatus {
+  NEW
+  REVIEWED
+  RESPONDED
+  CLOSED
+}

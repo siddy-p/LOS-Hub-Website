@@ -34,26 +34,66 @@ export function BookingModal({
   const [time, setTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [confirmationId, setConfirmationId] = useState('892101');
+  const [confirmationId, setConfirmationId] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [serverPrice, setServerPrice] = useState<number | null>(null);
 
   const activeAirport = ALL_AIRPORTS.find((a) => a.code === selectedAirportCode) || airport;
   const currentService = activeAirport.services.find((s) => s.serviceId === selectedServiceId) || activeAirport.services[0];
 
-  const calculatedPrice = (currentService?.priceNGN || 5000) * (selectedServiceId === 'lounge' ? passengers : 1);
+  const calculatedPrice = serverPrice || (currentService?.priceNGN || 5000) * (selectedServiceId === 'lounge' ? passengers : 1);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const newId = String(Math.floor(100000 + Math.random() * 900000));
-    setConfirmationId(newId);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setErrorMessage(null);
+
+    try {
+      const scheduledDateTime = date && time ? `${date}T${time}:00` : new Date(Date.now() + 3600000).toISOString();
+      const serviceTypeMap: Record<string, string> = {
+        porter: 'PORTER',
+        cab: 'CAB',
+        lounge: 'LOUNGE',
+        fasttrack: 'FASTTRACK',
+      };
+
+      const res = await fetch('/api/v1/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          airportCode: selectedAirportCode,
+          serviceType: serviceTypeMap[selectedServiceId] || 'PORTER',
+          flightNumber: flightNumber || undefined,
+          scheduledAt: new Date(scheduledDateTime).toISOString(),
+          passengerCount: Number(passengers) || 1,
+          luggageCount: 0,
+          name: fullName,
+          email: email,
+          phone: phone,
+          idempotencyKey: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Failed to secure booking. Please try again.');
+      }
+
+      setConfirmationId(json.data.reference || json.data.bookingId);
+      if (json.data.totalPriceNGN) {
+        setServerPrice(json.data.totalPriceNGN);
+      }
       setIsSuccess(true);
-    }, 1200);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while creating your booking.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
     setIsSuccess(false);
+    setErrorMessage(null);
     onClose();
   };
 
@@ -108,6 +148,11 @@ export function BookingModal({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700">
+              {errorMessage}
+            </div>
+          )}
           {/* Step 1: Airport & Service Pickers */}
           <div className="grid grid-cols-2 gap-3">
             <div>

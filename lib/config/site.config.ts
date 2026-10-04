@@ -3,7 +3,7 @@ export const siteConfig = {
   tagline: 'Level Of Service for African Airports',
   description:
     'Nigeria’s official airport experience platform. Book verified airport porters, premium airport rides, and executive lounge access. Starting at MM2 Lagos and expanding across Africa.',
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://loshub.com',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://los-hub.com',
   ogImage: '/images/og-image.jpg',
   brandColors: {
     primary: '#0F2137',   // Logo Deep Executive Navy
