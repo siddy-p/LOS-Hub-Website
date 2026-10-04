@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest) {
 
     if (!session?.user) {
       // Not authenticated — redirect to login with return URL
-      const loginUrl = new URL('/login', request.url);
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = '/login';
       loginUrl.searchParams.set('callbackUrl', pathname);
       return NextResponse.redirect(loginUrl);
     }
@@ -61,8 +62,11 @@ export async function middleware(request: NextRequest) {
     const allowedRoles = PROTECTED_ROUTES[protectedRoute];
 
     if (!allowedRoles.includes(userRole)) {
-      // Authenticated but wrong role — redirect to their own portal
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
+      // Authenticated but wrong role — redirect to unauthorized
+      const unauthUrl = request.nextUrl.clone();
+      unauthUrl.pathname = '/unauthorized';
+      unauthUrl.search = '';
+      return NextResponse.redirect(unauthUrl);
     }
   }
 

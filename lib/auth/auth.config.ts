@@ -2,6 +2,7 @@ import type { NextAuthConfig } from 'next-auth';
 import type { UserRole } from '@prisma/client';
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   session: {
     strategy: 'jwt',
     maxAge: 60 * 60 * 8, // 8 hours — operational sessions expire by end of shift

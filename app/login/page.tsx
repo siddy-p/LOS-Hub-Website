@@ -22,7 +22,7 @@ const DEMO_CREDENTIALS: Record<string, { email: string; label: string; password:
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/traveler';
+  const rawCallbackUrl = searchParams.get('callbackUrl');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,19 +34,66 @@ function LoginForm() {
     setIsLoading(true);
     setError('');
 
-    const result = await signIn('credentials', {
-      email: email.toLowerCase().trim(),
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn('credentials', {
+        email: email.toLowerCase().trim(),
+        password,
+        redirect: false,
+      });
 
-    setIsLoading(false);
+      if (result?.error) {
+        setIsLoading(false);
+        setError('Invalid email or password. Please try again.');
+        return;
+      }
 
-    if (result?.error) {
-      setError('Invalid email or password. Please try again.');
-    } else {
-      router.push(callbackUrl);
+      // Role to portal routing map
+      const ROLE_PORTALS: Record<string, string> = {
+        SUPER_ADMIN: '/admin',
+        ADMIN: '/admin',
+        CORPORATE_ADMIN: '/corporate-portal',
+        CORPORATE_USER: '/corporate-portal',
+        DRIVER: '/driver',
+        PORTER: '/porter',
+        AIRLINE_STAFF: '/airline',
+        FAAN_OPS: '/faan',
+        PARTNER: '/partner',
+        TRAVELER: '/traveler',
+      };
+
+      // Sanitize callbackUrl so it's strictly a relative internal path and never external/0.0.0.0
+      let destination = '';
+      if (
+        rawCallbackUrl &&
+        rawCallbackUrl.startsWith('/') &&
+        !rawCallbackUrl.startsWith('//') &&
+        rawCallbackUrl !== '/login'
+      ) {
+        destination = rawCallbackUrl;
+      }
+
+      // If no valid callback specified, fetch session to route by role
+      if (!destination) {
+        try {
+          const sessionRes = await fetch('/api/auth/session');
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            const userRole = sessionData?.user?.role;
+            if (userRole && ROLE_PORTALS[userRole]) {
+              destination = ROLE_PORTALS[userRole];
+            }
+          }
+        } catch {
+          // fallback to traveler
+        }
+      }
+
+      const finalPath = destination || '/traveler';
+      router.push(finalPath);
       router.refresh();
+    } catch {
+      setIsLoading(false);
+      setError('An unexpected error occurred during sign in. Please try again.');
     }
   };
 
