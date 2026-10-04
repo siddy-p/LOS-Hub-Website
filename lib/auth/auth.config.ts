@@ -10,9 +10,10 @@ export const authConfig: NextAuthConfig = {
   providers: [],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      const publicBase = process.env.WEBSITE_HOSTNAME
-        ? `https://${process.env.WEBSITE_HOSTNAME}`
-        : (process.env.AUTH_URL || process.env.NEXTAUTH_URL || (baseUrl.includes('0.0.0.0') ? 'http://localhost:3000' : baseUrl));
+      const publicBase =
+        process.env.AUTH_URL ||
+        process.env.NEXTAUTH_URL ||
+        (process.env.WEBSITE_HOSTNAME ? `https://${process.env.WEBSITE_HOSTNAME}` : 'https://los-hub.com');
 
       if (url.startsWith('/')) {
         return `${publicBase}${url}`;

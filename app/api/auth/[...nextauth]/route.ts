@@ -2,8 +2,11 @@ import { handlers } from '@/lib/auth/auth';
 import { NextRequest } from 'next/server';
 
 function patchRequest(req: NextRequest): NextRequest {
-  if (process.env.WEBSITE_HOSTNAME && !req.headers.get('x-forwarded-host')) {
-    req.headers.set('x-forwarded-host', process.env.WEBSITE_HOSTNAME);
+  const host = req.headers.get('host') || process.env.WEBSITE_HOSTNAME || 'los-hub.com';
+  if (!req.headers.get('x-forwarded-host') || req.headers.get('x-forwarded-host')?.includes('0.0.0.0')) {
+    req.headers.set('x-forwarded-host', host);
+  }
+  if (!req.headers.get('x-forwarded-proto')) {
     req.headers.set('x-forwarded-proto', 'https');
   }
   return req;
